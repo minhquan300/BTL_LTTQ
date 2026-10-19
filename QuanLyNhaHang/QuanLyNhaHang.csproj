@@ -1,0 +1,119 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Keep WinForms source, designer, and resource files linked in Solution Explorer
+       so the Windows Forms designer can discover each form's companion files. -->
+  <ItemGroup>
+    <Compile Update="Forms\FormKitchen.Designer.cs">
+      <DependentUpon>FormKitchen.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormLogin.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Update="Forms\FormLogin.Designer.cs">
+      <DependentUpon>FormLogin.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormMain.Designer.cs">
+      <DependentUpon>FormMain.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormOrder.Designer.cs">
+      <DependentUpon>FormOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormOrderDetail.Designer.cs">
+      <DependentUpon>FormOrderDetail.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormPayment.Designer.cs">
+      <DependentUpon>FormPayment.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormStatistics.Designer.cs">
+      <DependentUpon>FormStatistics.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormTable.Designer.cs">
+      <DependentUpon>FormTable.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormTableEdit.Designer.cs">
+      <DependentUpon>FormTableEdit.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormUserManagement.Designer.cs">
+      <DependentUpon>FormUserManagement.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Forms\FormXacNhanQuanLy.Designer.cs">
+      <DependentUpon>FormXacNhanQuanLy.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Forms\FormKitchen.resx">
+      <DependentUpon>FormKitchen.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormLogin.resx">
+      <DependentUpon>FormLogin.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormMenuItemEdit.resx">
+      <DependentUpon>FormMenuItemEdit.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormMain.resx">
+      <DependentUpon>FormMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormOrder.resx">
+      <DependentUpon>FormOrder.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormOrderDetail.resx">
+      <DependentUpon>FormOrderDetail.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormPaidInvoicePicker.resx">
+      <DependentUpon>FormPaidInvoicePicker.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormPayment.resx">
+      <DependentUpon>FormPayment.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormPaymentSuccess.resx">
+      <DependentUpon>FormPaymentSuccess.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormReceiptPreview.resx">
+      <DependentUpon>FormReceiptPreview.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormStatistics.resx">
+      <DependentUpon>FormStatistics.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormTable.resx">
+      <DependentUpon>FormTable.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormTableEdit.resx">
+      <DependentUpon>FormTableEdit.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormUserManagement.resx">
+      <DependentUpon>FormUserManagement.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\FormUserEdit.resx">
+      <DependentUpon>FormUserEdit.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Forms\PrinterRecoveryDialog.resx">
+      <DependentUpon>PrinterRecoveryDialog.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="PanoramicData.System.Windows.Forms.DataVisualization" Version="1.0.7" />
+  </ItemGroup>
+  <ItemGroup>
+	<Content Include="Images\restaurant.PNG">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="App.config" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Resources\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

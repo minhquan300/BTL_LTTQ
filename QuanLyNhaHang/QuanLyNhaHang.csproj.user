@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Update="Controls\BackgroundPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\RoundedTextBox.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\ShadowLabel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Forms\FormKitchen.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormLogin.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormMenuItemEdit.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormOrder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormOrderDetail.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormPaidInvoicePicker.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormPayment.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormPaymentSuccess.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormReceiptPreview.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormStatistics.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormTable.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormTableEdit.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormUserEdit.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormUserManagement.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\FormXacNhanQuanLy.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\PrinterRecoveryDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Forms\FormXacNhanQuanLy.cs">
+      <SubType>Form</SubType>
+    </None>
+  </ItemGroup>
+</Project>
