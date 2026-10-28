@@ -168,6 +168,17 @@ namespace QuanLyNhaHang.Data
             await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task UpdateMenuItemImagePathAsync(int menuItemId, string imagePath)
+        {
+            using var conn = DatabaseConnection.GetConnection();
+            await conn.OpenAsync();
+            using var cmd = new SqlCommand(
+                "UPDATE MenuItems SET ImagePath=@ImagePath WHERE MenuItemID=@ID", conn);
+            cmd.Parameters.AddWithValue("@ImagePath", imagePath);
+            cmd.Parameters.AddWithValue("@ID", menuItemId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         public async Task DeleteMenuItemAsync(int id)
         {
             using var conn = DatabaseConnection.GetConnection();

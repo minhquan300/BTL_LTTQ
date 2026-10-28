@@ -267,9 +267,7 @@ namespace QuanLyNhaHang.Forms
 
         private static string? ResolveMenuImagePath(string? imagePath)
         {
-            if (string.IsNullOrWhiteSpace(imagePath)) return null;
-            var candidate = Path.IsPathRooted(imagePath) ? imagePath : Path.Combine(AppContext.BaseDirectory, imagePath);
-            return File.Exists(candidate) ? candidate : null;
+            return MenuImageStorage.Resolve(imagePath);
         }
 
         private static Image CreateFadedImage(Image source)
@@ -535,6 +533,127 @@ namespace QuanLyNhaHang.Forms
             await _repo.CreateCategoryAsync(new Category { CategoryName = name.Trim(), IsActive = true });
             await LoadCategoriesAsync();
             ValidationHelper.ShowSuccess("Thêm danh mục thành công!");
+        }
+
+        private async void btnImportImages_Click(object? sender, EventArgs e)
+        {
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Chọn thư mục chứa ảnh món ăn. Tên ảnh nên gần giống tên món để ghép tự động.",
+                ShowNewFolderButton = false
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+            var sourceFiles = Directory.EnumerateFiles(dialog.SelectedPath, "*", SearchOption.TopDirectoryOnly)
+                .Where(MenuImageStorage.IsSupportedImage)
+                .ToList();
+            if (sourceFiles.Count == 0)
+            {
+                MessageBox.Show(this, "Thư mục không có ảnh JPG, JPEG, JFIF, PNG, BMP hoặc GIF.",
+                    "Không tìm thấy ảnh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var sourceByItem = new Dictionary<int, string>();
+            var usedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in _items)
+            {
+                string? existingImage = MenuImageStorage.Resolve(item.ImagePath);
+                if (existingImage == null) continue;
+
+                bool alreadyPortable = !Path.IsPathRooted(item.ImagePath) &&
+                    item.ImagePath!.StartsWith("Images" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                if (!alreadyPortable)
+                    sourceByItem[item.MenuItemID] = existingImage;
+                usedFiles.Add(Path.GetFullPath(existingImage));
+            }
+
+            var pendingItems = _items.Where(item => !sourceByItem.ContainsKey(item.MenuItemID) &&
+                !(item.ImagePath?.StartsWith("Images" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true &&
+                  MenuImageStorage.Resolve(item.ImagePath) != null)).ToList();
+
+            foreach (var item in pendingItems)
+            {
+                var candidates = sourceFiles
+                    .Where(file => !usedFiles.Contains(Path.GetFullPath(file)))
+                    .Select(file => new { File = file, Score = GetImageNameMatchScore(item.ItemName, Path.GetFileNameWithoutExtension(file)) })
+                    .Where(candidate => candidate.Score >= 0.75)
+                    .OrderByDescending(candidate => candidate.Score)
+                    .ToList();
+
+                if (candidates.Count == 0) continue;
+                if (candidates.Count > 1 && candidates[0].Score - candidates[1].Score < 0.08) continue;
+
+                sourceByItem[item.MenuItemID] = candidates[0].File;
+                usedFiles.Add(Path.GetFullPath(candidates[0].File));
+            }
+
+            if (sourceByItem.Count == 0)
+            {
+                MessageBox.Show(this, "Không tìm thấy ảnh nào ghép được với món ăn hoặc các đường dẫn ảnh cũ không còn truy cập được.",
+                    "Chưa có ảnh để nhập", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var skippedItems = _items.Where(item => !sourceByItem.ContainsKey(item.MenuItemID) &&
+                (string.IsNullOrWhiteSpace(item.ImagePath) || MenuImageStorage.Resolve(item.ImagePath) == null)).ToList();
+            string skippedPreview = skippedItems.Count == 0 ? string.Empty :
+                "\n\nKhông ghép được an toàn (sẽ bỏ qua): " + string.Join(", ", skippedItems.Take(8).Select(item => item.ItemName)) +
+                (skippedItems.Count > 8 ? $" và {skippedItems.Count - 8} món khác." : ".");
+            var answer = MessageBox.Show(this,
+                $"Tìm thấy ảnh cho {sourceByItem.Count} món. Ảnh sẽ được chép vào thư mục Images cạnh ứng dụng và đường dẫn trong database sẽ chuyển thành đường dẫn tương đối.{skippedPreview}\n\nTiếp tục?",
+                "Nhập ảnh hàng loạt", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (answer != DialogResult.Yes) return;
+
+            btnImportImages.Enabled = false;
+            int imported = 0;
+            var failures = new List<string>();
+            try
+            {
+                foreach (var item in _items.Where(item => sourceByItem.ContainsKey(item.MenuItemID)))
+                {
+                    try
+                    {
+                        string relativePath = MenuImageStorage.CopyIntoApplicationImages(
+                            sourceByItem[item.MenuItemID], item.MenuItemID);
+                        await _repo.UpdateMenuItemImagePathAsync(item.MenuItemID, relativePath);
+                        imported++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failures.Add($"{item.ItemName}: {ex.Message}");
+                    }
+                }
+
+                await LoadMenuItemsAsync();
+                string result = $"Đã cập nhật đường dẫn ảnh cho {imported} món.";
+                if (skippedItems.Count > 0) result += $"\nBỏ qua {skippedItems.Count} món không ghép được chắc chắn.";
+                if (failures.Count > 0) result += $"\nKhông cập nhật được {failures.Count} món: " +
+                    string.Join("; ", failures.Take(5)) + (failures.Count > 5 ? "; ..." : string.Empty);
+                MessageBox.Show(this, result, "Hoàn tất nhập ảnh", MessageBoxButtons.OK,
+                    failures.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+            }
+            finally
+            {
+                btnImportImages.Enabled = true;
+            }
+        }
+
+        private static double GetImageNameMatchScore(string menuItemName, string fileName)
+        {
+            string normalizedItem = MenuImageStorage.NormalizeForMatching(menuItemName);
+            string normalizedFile = MenuImageStorage.NormalizeForMatching(fileName);
+            if (normalizedItem.Length == 0 || normalizedFile.Length == 0) return 0;
+            if (normalizedItem == normalizedFile) return 1;
+
+            var itemWords = normalizedItem.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+            var fileWords = normalizedFile.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+            int commonWords = itemWords.Intersect(fileWords).Count();
+            if (commonWords < 2) return 0;
+            double wordScore = (double)commonWords / Math.Max(itemWords.Count, fileWords.Count);
+            bool prefixMatch = normalizedItem.StartsWith(normalizedFile + " ", StringComparison.Ordinal) ||
+                normalizedFile.StartsWith(normalizedItem + " ", StringComparison.Ordinal);
+            return prefixMatch ? Math.Max(wordScore, 0.88) : wordScore;
         }
 
         private void txtSearch_TextChanged(object sender, EventArgs e)

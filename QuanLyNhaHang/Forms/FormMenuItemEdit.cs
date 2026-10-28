@@ -230,7 +230,7 @@ namespace QuanLyNhaHang.Forms
             using var dialog = new OpenFileDialog
             {
                 Title = "Chọn ảnh món ăn",
-                Filter = "Tệp ảnh|*.jpg;*.jpeg;*.png;*.bmp;*.gif|Tất cả tệp|*.*",
+                Filter = "Tệp ảnh|*.jpg;*.jpeg;*.jfif;*.png;*.bmp;*.gif|Tất cả tệp|*.*",
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -241,9 +241,19 @@ namespace QuanLyNhaHang.Forms
             }
 
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
-            _selectedImagePath = dialog.FileName;
-            lblImageName.Text = Path.GetFileName(dialog.FileName);
-            SetPreviewImage(dialog.FileName);
+            try
+            {
+                _selectedImagePath = MenuImageStorage.CopyIntoApplicationImages(dialog.FileName,
+                    _existing?.MenuItemID ?? 0);
+                lblImageName.Text = Path.GetFileName(dialog.FileName);
+                SetPreviewImage(dialog.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    $"Không thể lưu ảnh vào thư mục Images cạnh ứng dụng. Hãy cài ứng dụng ở thư mục có quyền ghi.\n\n{ex.Message}",
+                    "Không lưu được ảnh", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void SetPreviewImage(string path)
@@ -265,8 +275,7 @@ namespace QuanLyNhaHang.Forms
 
         private static string? ResolveImagePath(string imagePath)
         {
-            var path = Path.IsPathRooted(imagePath) ? imagePath : Path.Combine(AppContext.BaseDirectory, imagePath);
-            return File.Exists(path) ? path : null;
+            return MenuImageStorage.Resolve(imagePath);
         }
 
         private void UpdateAvailabilitySwitch()

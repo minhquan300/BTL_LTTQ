@@ -114,6 +114,7 @@
   <ItemGroup>
     <None Update="App.config" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Assets\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Images\**\*.*" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Resources\**\*.*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

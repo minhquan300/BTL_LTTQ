@@ -14,7 +14,7 @@ namespace QuanLyNhaHang.Forms
         private TextBox txtSearch = null!;
         private Label lblCount = null!;
         private Label lblEmptyMessage = null!;
-        private Button btnAddItem = null!, btnEditItem = null!, btnDeleteItem = null!, btnAddCat = null!, btnGridView = null!, btnTableView = null!, btnEmptyAdd = null!;
+        private Button btnAddItem = null!, btnEditItem = null!, btnDeleteItem = null!, btnAddCat = null!, btnImportImages = null!, btnGridView = null!, btnTableView = null!, btnEmptyAdd = null!;
 
         private void InitializeComponent()
         {
@@ -36,7 +36,7 @@ namespace QuanLyNhaHang.Forms
             var pnlActions = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
-                Width = 494,
+                Width = 630,
                 Height = 56,
                 WrapContents = false,
                 FlowDirection = FlowDirection.LeftToRight,
@@ -76,6 +76,8 @@ namespace QuanLyNhaHang.Forms
             btnDeleteItem.Click += btnDeleteItem_Click;
             btnAddCat = MakeToolbarButton("Thêm danh mục", 136, UITheme.Surface, UITheme.TextPrimary, UITheme.AlternateRow, outlined: true);
             btnAddCat.Click += btnAddCat_Click;
+            btnImportImages = MakeToolbarButton("Nhập ảnh hàng loạt", 128, UITheme.PrimarySoft, UITheme.Primary, UITheme.Selection, outlined: true);
+            btnImportImages.Click += btnImportImages_Click;
 
             // ── Split ───────────────────────────────────────────
             var split = new SplitContainer
