@@ -1,6 +1,7 @@
 using QuanLyNhaHang.Helpers;
 using QuanLyNhaHang.Service;
 using System.Data;
+using System.Windows.Forms.DataVisualization.Charting;
 
 namespace QuanLyNhaHang.Forms
 {
@@ -14,8 +15,298 @@ namespace QuanLyNhaHang.Forms
         {
             UITheme.ConfigureDpi(this);
             InitializeComponent();
+            ConfigureCharts();
+            ConfigureLayout();
             ConfigureVisualStyles();
             UITheme.EnableDoubleBuffering(this);
+        }
+
+        private void ConfigureLayout()
+        {
+            BackColor = UITheme.Light;
+
+            pnlHeader.Dock = DockStyle.Top;
+            pnlHeader.Height = 56;
+            pnlHeader.BackColor = Color.White;
+            lblHeaderTitle.Text = "📊 Báo Cáo & Thống Kê Nhà Hàng";
+            lblHeaderTitle.Font = UITheme.FontTitle;
+            lblHeaderTitle.ForeColor = UITheme.PrimaryDark;
+            lblHeaderTitle.AutoSize = true;
+            lblHeaderTitle.Location = new Point(18, 14);
+
+            pnlCards.Dock = DockStyle.Top;
+            pnlCards.Height = 80;
+            pnlCards.BackColor = Color.White;
+            pnlCards.Padding = new Padding(15, 10, 15, 10);
+            pnlRevenueCard.BackColor = UITheme.Primary;
+            pnlRevenueCard.SetBounds(18, 10, 240, 60);
+            pnlRevenueCard.Padding = new Padding(8);
+            lblRevenueCardTitle.Text = "💰 Doanh thu hôm nay";
+            lblRevenueCardTitle.SetBounds(8, 4, 220, 16);
+            lblRevenueCardTitle.Font = UITheme.FontSmall;
+            lblRevenueCardTitle.ForeColor = Color.FromArgb(220, 255, 255, 255);
+            lblRevenueToday.SetBounds(8, 22, 220, 32);
+            lblRevenueToday.Font = new Font("Segoe UI", 15f, FontStyle.Bold);
+            lblRevenueToday.ForeColor = Color.White;
+            pnlTotalRevenueCard.BackColor = UITheme.Success;
+            pnlTotalRevenueCard.SetBounds(275, 10, 240, 60);
+            pnlTotalRevenueCard.Padding = new Padding(8);
+            lblTotalRevenueCardTitle.Text = "📈 Tổng doanh thu lọc";
+            lblTotalRevenueCardTitle.SetBounds(8, 4, 220, 16);
+            lblTotalRevenueCardTitle.Font = UITheme.FontSmall;
+            lblTotalRevenueCardTitle.ForeColor = Color.FromArgb(220, 255, 255, 255);
+            lblTotalRevenueCard.SetBounds(8, 22, 220, 32);
+            lblTotalRevenueCard.Font = new Font("Segoe UI", 15f, FontStyle.Bold);
+            lblTotalRevenueCard.ForeColor = Color.White;
+
+            pnlFilter.Dock = DockStyle.Top;
+            pnlFilter.Height = 52;
+            pnlFilter.BackColor = Color.White;
+            pnlFilter.Padding = new Padding(15, 8, 15, 8);
+            lblFrom.Text = "Từ:";
+            lblFrom.Font = UITheme.FontNormal;
+            lblFrom.AutoSize = true;
+            lblFrom.Location = new Point(15, 15);
+            dtpFrom.Format = DateTimePickerFormat.Short;
+            dtpFrom.SetBounds(45, 11, 115, 28);
+            dtpFrom.Font = UITheme.FontNormal;
+            if (dtpFrom.Value.Date == DateTime.Today)
+                dtpFrom.Value = DateTime.Today.AddDays(-30);
+            lblTo.Text = "Đến:";
+            lblTo.Font = UITheme.FontNormal;
+            lblTo.AutoSize = true;
+            lblTo.Location = new Point(175, 15);
+            dtpTo.Format = DateTimePickerFormat.Short;
+            dtpTo.SetBounds(215, 11, 115, 28);
+            dtpTo.Font = UITheme.FontNormal;
+            btnSearch.Text = "🔍 Xem báo cáo";
+            btnSearch.SetBounds(350, 10, 135, 30);
+            btnToday.Text = "Hôm nay";
+            btnToday.SetBounds(495, 10, 85, 30);
+            btnThisMonth.Text = "Tháng này";
+            btnThisMonth.SetBounds(590, 10, 95, 30);
+            btnAllTime.Text = "Tất cả";
+            btnAllTime.SetBounds(695, 10, 80, 30);
+
+            pnlSummary.Dock = DockStyle.Bottom;
+            pnlSummary.Height = 38;
+            pnlSummary.BackColor = UITheme.PrimaryDark;
+            lblSummary.Dock = DockStyle.Fill;
+            lblSummary.Font = new Font(UITheme.FontFamily, 9.5f, FontStyle.Bold);
+            lblSummary.ForeColor = Color.White;
+            lblSummary.TextAlign = ContentAlignment.MiddleCenter;
+
+            tabControlStats.Dock = DockStyle.Fill;
+            tabControlStats.Font = new Font(UITheme.FontFamily, 10f, FontStyle.Bold);
+            tabControlStats.Padding = new Point(14, 6);
+            tabRevenue.BackColor = UITheme.Light;
+            tabTopDishes.BackColor = UITheme.Light;
+            tabPayment.BackColor = UITheme.Light;
+            tabCookPerf.BackColor = UITheme.Light;
+
+            // Dock order: report tabs fill the center, with summary/filter/cards/header around them.
+            Controls.SetChildIndex(tabControlStats, 0);
+            Controls.SetChildIndex(pnlSummary, 1);
+            Controls.SetChildIndex(pnlFilter, 2);
+            Controls.SetChildIndex(pnlCards, 3);
+            Controls.SetChildIndex(pnlHeader, 4);
+
+            splitRevenue.Dock = DockStyle.Fill;
+            splitRevenue.BackColor = UITheme.Light;
+            splitRevenue.BorderStyle = BorderStyle.FixedSingle;
+            splitRevenue.SizeChanged += (_, _) => LayoutRevenueSplit();
+            dgvRevenue.Dock = DockStyle.Fill;
+            chartRevenue.Dock = DockStyle.Fill;
+            dgvTopDishes.Dock = DockStyle.Fill;
+            dgvCookPerf.Dock = DockStyle.Fill;
+            paymentLayout.Dock = DockStyle.Fill;
+
+            ConfigureReportColumns();
+            LayoutRevenueSplit();
+        }
+
+        private void LayoutRevenueSplit()
+        {
+            int width = splitRevenue.ClientSize.Width;
+            int height = splitRevenue.ClientSize.Height;
+            if (width >= 1000)
+            {
+                splitRevenue.Orientation = Orientation.Vertical;
+                splitRevenue.Panel1MinSize = 320;
+                splitRevenue.Panel2MinSize = 380;
+                if (width >= splitRevenue.Panel1MinSize + splitRevenue.Panel2MinSize + splitRevenue.SplitterWidth)
+                {
+                    int maxDistance = width - splitRevenue.Panel2MinSize - splitRevenue.SplitterWidth;
+                    splitRevenue.SplitterDistance = Math.Clamp((int)(width * 0.42), splitRevenue.Panel1MinSize, maxDistance);
+                }
+            }
+            else
+            {
+                splitRevenue.Orientation = Orientation.Horizontal;
+                splitRevenue.Panel1MinSize = 140;
+                splitRevenue.Panel2MinSize = 180;
+                if (height >= splitRevenue.Panel1MinSize + splitRevenue.Panel2MinSize + splitRevenue.SplitterWidth)
+                {
+                    int maxDistance = height - splitRevenue.Panel2MinSize - splitRevenue.SplitterWidth;
+                    splitRevenue.SplitterDistance = Math.Clamp((int)(height * 0.42), splitRevenue.Panel1MinSize, maxDistance);
+                }
+            }
+        }
+
+        private void ConfigureReportColumns()
+        {
+            dgvRevenue.AutoGenerateColumns = false;
+            dgvRevenue.Columns.Clear();
+            dgvRevenue.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colRevenueDate", HeaderText = "Ngày", DataPropertyName = "Ngày", FillWeight = 35,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "dd/MM/yyyy" }
+            });
+            dgvRevenue.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colRevenueOrders", HeaderText = "Số đơn", DataPropertyName = "Số đơn", FillWeight = 25,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Format = "#,##0" }
+            });
+            dgvRevenue.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colRevenueAmount", HeaderText = "Doanh thu (đ)", DataPropertyName = "Doanh thu (đ)", FillWeight = 40,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "#,##0" }
+            });
+
+            dgvTopDishes.AutoGenerateColumns = true;
+            dgvTopDishes.Columns.Clear();
+
+            dgvPayment.AutoGenerateColumns = false;
+            dgvPayment.Columns.Clear();
+            dgvPayment.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPaymentMethod", HeaderText = "Phương thức", DataPropertyName = "Phương thức", FillWeight = 30
+            });
+            dgvPayment.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPaymentOrders", HeaderText = "Số đơn", DataPropertyName = "Số đơn", FillWeight = 18,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Format = "#,##0" }
+            });
+            dgvPayment.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPaymentAmount", HeaderText = "Doanh thu (đ)", DataPropertyName = "Doanh thu (đ)", FillWeight = 30,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "#,##0" }
+            });
+            dgvPayment.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPaymentShare", HeaderText = "Tỷ lệ %", DataPropertyName = "Tỷ lệ %", FillWeight = 22,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "P2" }
+            });
+
+            dgvCookPerf.AutoGenerateColumns = false;
+            dgvCookPerf.Columns.Clear();
+            dgvCookPerf.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCookItemName", HeaderText = "Tên món", DataPropertyName = "Tên món", FillWeight = 200
+            });
+            dgvCookPerf.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCookCount", HeaderText = "Số lần chế biến", DataPropertyName = "Số lần chế biến", FillWeight = 120,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "#,##0", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvCookPerf.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCookAverage", HeaderText = "Thời gian TB (phút)", DataPropertyName = "Thời gian TB (phút)", FillWeight = 140,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "0.0", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvCookPerf.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCookFastest", HeaderText = "Nhanh nhất (phút)", DataPropertyName = "Nhanh nhất (phút)", FillWeight = 120,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "0.0", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvCookPerf.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCookSlowest", HeaderText = "Chậm nhất (phút)", DataPropertyName = "Chậm nhất (phút)", FillWeight = 120,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "0.0", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+        }
+
+        private void ConfigureCharts()
+        {
+            // The current designer layout does not instantiate these chart controls.
+            // Create them here so the report handlers always have initialized charts.
+            chartRevenue = new Chart
+            {
+                Name = "chartRevenue",
+                Dock = DockStyle.Fill,
+                BackColor = Color.White
+            };
+            revenueArea = new ChartArea("RevenueArea")
+            {
+                BackColor = Color.White
+            };
+            revenueArea.AxisX.Title = "Ngày";
+            revenueArea.AxisX.LabelStyle.Format = "dd/MM";
+            revenueArea.AxisX.LabelStyle.Angle = -45;
+            revenueArea.AxisX.MajorGrid.Enabled = false;
+            revenueArea.AxisX.IntervalType = DateTimeIntervalType.Days;
+            revenueArea.AxisY.Title = "Doanh thu (đ)";
+            revenueArea.AxisY.LabelStyle.Format = "#,##0";
+            revenueArea.AxisY.MajorGrid.LineColor = UITheme.Border;
+            chartRevenue.ChartAreas.Add(revenueArea);
+            chartRevenue.Titles.Add(new Title(
+                "Doanh thu theo ngày", Docking.Top,
+                new Font("Segoe UI", 11f, FontStyle.Bold), UITheme.TextPrimary));
+            chartRevenue.Legends.Add(new Legend { Enabled = false });
+            chartRevenue.Series.Add(new Series("Doanh thu")
+            {
+                ChartArea = "RevenueArea",
+                ChartType = SeriesChartType.Column,
+                XValueType = ChartValueType.Date,
+                Color = UITheme.Primary,
+                BorderWidth = 2,
+                ToolTip = "#VALX{dd/MM/yyyy}: #VALY{#,##0} đ"
+            });
+            splitRevenue.Panel2.Controls.Add(chartRevenue);
+
+            chartPayment = new Chart
+            {
+                Name = "chartPayment",
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Palette = ChartColorPalette.BrightPastel
+            };
+            paymentArea = new ChartArea("PaymentArea")
+            {
+                BackColor = Color.White
+            };
+            paymentArea.AxisX.Enabled = AxisEnabled.False;
+            paymentArea.AxisY.Enabled = AxisEnabled.False;
+            chartPayment.ChartAreas.Add(paymentArea);
+            chartPayment.Titles.Add(new Title(
+                "Tỷ lệ doanh thu theo phương thức", Docking.Top,
+                new Font("Segoe UI", 11f, FontStyle.Bold), UITheme.TextPrimary));
+            chartPayment.Legends.Add(new Legend("PaymentLegend")
+            {
+                Docking = Docking.Right,
+                Alignment = StringAlignment.Center,
+                Font = UITheme.FontSmall
+            });
+            chartPayment.Series.Add(new Series("Tỷ lệ thanh toán")
+            {
+                ChartArea = "PaymentArea",
+                ChartType = SeriesChartType.Pie,
+                Legend = "PaymentLegend",
+                XValueMember = "Phương thức",
+                YValueMembers = "Doanh thu (đ)",
+                Label = "#PERCENT{P0}",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ToolTip = "#VALX: #VALY{#,##0} đ (#PERCENT{P1})"
+            });
+
+            paymentLayout.ColumnCount = 2;
+            paymentLayout.RowCount = 1;
+            paymentLayout.ColumnStyles.Clear();
+            paymentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 56f));
+            paymentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44f));
+            paymentLayout.RowStyles.Clear();
+            paymentLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            paymentLayout.Controls.Add(chartPayment, 1, 0);
         }
 
         private void ConfigureVisualStyles()

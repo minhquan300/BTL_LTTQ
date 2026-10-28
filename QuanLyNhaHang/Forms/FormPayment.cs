@@ -2,11 +2,10 @@ using QuanLyNhaHang.Helpers;
 using QuanLyNhaHang.Models;
 using QuanLyNhaHang.Service;
 using System.Globalization;
-using System.Net.Http;
-using System.Collections.Concurrent;
 using System.Drawing.Imaging;
 using System.Text;
 using System.Xml.Linq;
+using QRCoder;
 
 namespace QuanLyNhaHang.Forms
 {
@@ -27,8 +26,6 @@ namespace QuanLyNhaHang.Forms
         private readonly System.Windows.Forms.Timer _qrRefreshTimer = new() { Interval = 600 };
         private readonly System.Windows.Forms.Timer _qrCountdownTimer = new() { Interval = 1000 };
         private CancellationTokenSource? _qrCancellation;
-        private static readonly HttpClient QrHttpClient = new() { Timeout = TimeSpan.FromSeconds(12) };
-        private static readonly ConcurrentDictionary<string, byte[]> QrImageCache = new();
         private readonly VietQrConfiguration _qrConfiguration;
         private decimal? _qrAmount;
         private decimal? _qrPendingAmount;
@@ -91,6 +88,7 @@ namespace QuanLyNhaHang.Forms
             footer.Paint += new PaintEventHandler(footer_Paint);
             pnlCash.Paint += new PaintEventHandler(MethodPanel_Paint);
             pnlTransfer.Paint += new PaintEventHandler(MethodPanel_Paint);
+            pnlTransfer.Resize += PnlTransfer_Resize;
             pnlCard.Paint += new PaintEventHandler(MethodPanel_Paint);
             foreach (var button in new[] { btnCancel, btnConfirm, btnCash50, btnCash100, btnCash200,
                 btnCash500, btnCashExact, btnRefreshQr, btnCopyBank, btnCopyAccount, btnCopyOwner,
@@ -112,6 +110,7 @@ namespace QuanLyNhaHang.Forms
             }
             UITheme.ApplyRoundedCorners(lblCardIcon, UITheme.CornerRadius);
             footer_Resize(footer, EventArgs.Empty);
+            LayoutTransferPanel();
             bodyViewport_ClientSizeChanged(bodyViewport, EventArgs.Empty);
             UpdateDiscountModeButtons();
             Recalculate(_gross);
@@ -134,6 +133,42 @@ namespace QuanLyNhaHang.Forms
 
         private void bodyViewport_ClientSizeChanged(object? sender, EventArgs e) =>
             content.Height = Math.Max(572, bodyViewport.ClientSize.Height);
+
+        private void PnlTransfer_Resize(object? sender, EventArgs e) => LayoutTransferPanel();
+
+        private void LayoutTransferPanel()
+        {
+            if (pnlTransfer == null || pnlTransfer.ClientSize.Width <= 0) return;
+
+            int width = pnlTransfer.ClientSize.Width;
+            int buttonWidth = Math.Min(88, Math.Max(76, width / 6));
+            int rightPadding = 12;
+            int buttonLeft = Math.Max(12, width - rightPadding - buttonWidth);
+            int valueLeft = 128;
+            int valueWidth = Math.Max(100, buttonLeft - valueLeft - 8);
+
+            picQr.Left = Math.Max(10, (width - picQr.Width) / 2);
+            lblQrStatus.SetBounds(10, 254, Math.Max(1, width - 20), 24);
+            lblQrCountdown.SetBounds(10, 278, Math.Max(1, width - 20), 20);
+
+            LayoutQrInfoRow(lblQrBankCaption, lblQrBankValue, btnCopyBank, 308, valueLeft, valueWidth, buttonLeft, buttonWidth);
+            LayoutQrInfoRow(lblQrAccountCaption, lblQrAccountValue, btnCopyAccount, 344, valueLeft, valueWidth, buttonLeft, buttonWidth);
+            LayoutQrInfoRow(lblQrOwnerCaption, lblQrOwnerValue, btnCopyOwner, 380, valueLeft, valueWidth, buttonLeft, buttonWidth);
+            LayoutQrInfoRow(lblQrAmountCaption, lblQrAmountValue, btnCopyAmount, 416, valueLeft, valueWidth, buttonLeft, buttonWidth);
+            LayoutQrInfoRow(lblQrContentCaption, lblQrContentValue, btnCopyContent, 452, valueLeft, valueWidth, buttonLeft, buttonWidth);
+
+            btnRefreshQr.Left = Math.Max(10, (width - btnRefreshQr.Width) / 2);
+            lblQrNote.SetBounds(10, 526, Math.Max(1, width - 20), 24);
+        }
+
+        private static void LayoutQrInfoRow(Label caption, Label value, Button copyButton,
+            int top, int valueLeft, int valueWidth, int buttonLeft, int buttonWidth)
+        {
+            caption.SetBounds(14, top + 3, 108, 22);
+            value.SetBounds(valueLeft, top, valueWidth, 24);
+            copyButton.SetBounds(buttonLeft, top - 3, buttonWidth, 28);
+            copyButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        }
 
         private void footer_Paint(object? sender, PaintEventArgs e)
         {
@@ -513,21 +548,8 @@ namespace QuanLyNhaHang.Forms
 
             try
             {
-                string cacheKey = $"{_qrConfiguration.BankId}|{_qrConfiguration.AccountNumber}|{qrAmount:0}|{transferInfo}|{_qrConfiguration.AccountName}";
-                if (!QrImageCache.TryGetValue(cacheKey, out var imageBytes))
-                {
-                    string accountName = RemoveDiacritics(_qrConfiguration.AccountName).ToUpperInvariant();
-                    string url = $"https://img.vietqr.io/image/{Uri.EscapeDataString(_qrConfiguration.BankId)}-{Uri.EscapeDataString(_qrConfiguration.AccountNumber)}-compact2.png" +
-                        $"?amount={decimal.ToInt64(decimal.Round(qrAmount, 0))}" +
-                        $"&addInfo={Uri.EscapeDataString(transferInfo)}" +
-                        $"&accountName={Uri.EscapeDataString(accountName)}";
-                    using var response = await QrHttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
-                    response.EnsureSuccessStatusCode();
-                    imageBytes = await response.Content.ReadAsByteArrayAsync(cancellation.Token);
-                    if (imageBytes.Length == 0) throw new InvalidDataException("VietQR returned an empty image.");
-                    if (QrImageCache.Count >= 64) QrImageCache.Clear();
-                    QrImageCache.TryAdd(cacheKey, imageBytes);
-                }
+                byte[] imageBytes = await Task.Run(() => GenerateVietQrImage(_qrConfiguration, qrAmount,
+                    transferInfo), cancellation.Token);
                 using var stream = new MemoryStream(imageBytes);
                 using var image = Image.FromStream(stream);
                 var renderedImage = new Bitmap(image);
@@ -551,13 +573,13 @@ namespace QuanLyNhaHang.Forms
                 _qrCountdownTimer.Start();
                 UpdateConfirmButton();
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
             }
-            catch
+            catch (Exception)
             {
                 if (!IsDisposed && ReferenceEquals(_qrCancellation, cancellation))
-                    lblQrStatus.Text = "Không tải được QR. Kiểm tra kết nối mạng hoặc bấm Làm mới QR.";
+                    lblQrStatus.Text = "Không tạo được mã QR. Hãy kiểm tra cấu hình ngân hàng, số tài khoản và thử làm mới.";
             }
             finally
             {
@@ -621,6 +643,73 @@ namespace QuanLyNhaHang.Forms
         {
             string digits = new string((_order.TableName ?? string.Empty).Where(char.IsDigit).ToArray());
             return $"HD{_order.OrderID:D5} BAN{(digits.Length == 0 ? "01" : digits)}";
+        }
+
+        private static byte[] GenerateVietQrImage(VietQrConfiguration configuration, decimal amount, string transferMemo)
+        {
+            string payload = BuildVietQrPayload(configuration, amount, transferMemo);
+            using var generator = new QRCodeGenerator();
+            using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+            var pngQrCode = new PngByteQRCode(data);
+            return pngQrCode.GetGraphic(8);
+        }
+
+        private static string BuildVietQrPayload(VietQrConfiguration configuration, decimal amount, string transferMemo)
+        {
+            string bankBin = configuration.BankId.Trim();
+            string accountNumber = configuration.AccountNumber.Trim();
+            string accountName = RemoveDiacritics(configuration.AccountName).ToUpperInvariant().Trim();
+            string memo = RemoveDiacritics(transferMemo).ToUpperInvariant().Trim();
+
+            if (bankBin.Length != 6 || !bankBin.All(char.IsAsciiDigit))
+                throw new InvalidDataException("Mã BIN ngân hàng phải gồm 6 chữ số.");
+            if (accountNumber.Length is < 1 or > 19 || !accountNumber.All(char.IsAsciiLetterOrDigit))
+                throw new InvalidDataException("Số tài khoản không hợp lệ.");
+            if (accountName.Length is < 1 or > 25 || !accountName.All(c => c is >= ' ' and <= '~'))
+                throw new InvalidDataException("Tên chủ tài khoản phải gồm tối đa 25 ký tự không dấu.");
+            if (memo.Length is < 1 or > 25 || !memo.All(c => c is >= ' ' and <= '~'))
+                throw new InvalidDataException("Nội dung chuyển khoản phải gồm tối đa 25 ký tự không dấu.");
+
+            long amountVnd = decimal.ToInt64(decimal.Round(amount, 0, MidpointRounding.AwayFromZero));
+            if (amountVnd <= 0)
+                throw new InvalidDataException("Số tiền cần thanh toán phải lớn hơn 0.");
+
+            string beneficiary = BuildTlv("00", bankBin) + BuildTlv("01", accountNumber);
+            string merchantAccount = BuildTlv("00", "A000000727") +
+                BuildTlv("01", beneficiary) +
+                BuildTlv("02", "QRIBFTTA");
+            string additionalData = BuildTlv("08", memo);
+            string payload = BuildTlv("00", "01") +
+                BuildTlv("01", "12") +
+                BuildTlv("38", merchantAccount) +
+                BuildTlv("52", "0000") +
+                BuildTlv("53", "704") +
+                BuildTlv("54", amountVnd.ToString(CultureInfo.InvariantCulture)) +
+                BuildTlv("58", "VN") +
+                BuildTlv("59", accountName) +
+                BuildTlv("62", additionalData);
+
+            string crcInput = payload + "6304";
+            return crcInput + ComputeCrc16CcittFalse(crcInput).ToString("X4", CultureInfo.InvariantCulture);
+        }
+
+        private static string BuildTlv(string tag, string value)
+        {
+            if (value.Length > 99)
+                throw new InvalidDataException($"Trường VietQR {tag} vượt quá 99 ký tự.");
+            return tag + value.Length.ToString("D2", CultureInfo.InvariantCulture) + value;
+        }
+
+        private static ushort ComputeCrc16CcittFalse(string value)
+        {
+            ushort crc = 0xFFFF;
+            foreach (byte currentByte in Encoding.ASCII.GetBytes(value))
+            {
+                crc ^= (ushort)(currentByte << 8);
+                for (int bit = 0; bit < 8; bit++)
+                    crc = (ushort)((crc & 0x8000) != 0 ? (crc << 1) ^ 0x1021 : crc << 1);
+            }
+            return crc;
         }
 
         private static string RemoveDiacritics(string text)

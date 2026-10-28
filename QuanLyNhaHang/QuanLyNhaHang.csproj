@@ -104,6 +104,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
     <PackageReference Include="PanoramicData.System.Windows.Forms.DataVisualization" Version="1.0.7" />
+    <PackageReference Include="QRCoder" Version="1.8.1" />
   </ItemGroup>
   <ItemGroup>
 	<Content Include="Images\restaurant.PNG">
