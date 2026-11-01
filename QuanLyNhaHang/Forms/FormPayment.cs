@@ -780,12 +780,14 @@ namespace QuanLyNhaHang.Forms
             int? managerApprovedBy = AuthService.Instance.IsAdmin
                 ? AuthService.Instance.CurrentUser?.EmployeeID
                 : null;
-            if (gross > 0 && DiscountAmount / gross > 0.20m && managerApprovedBy == null)
+            if (gross > 0 &&
+                (DiscountAmount / gross > 0.20m || DiscountAmount > 500_000m) &&
+                managerApprovedBy == null)
             {
                 managerApprovedBy = await RequestManagerApprovalAsync();
                 if (managerApprovedBy == null)
                 {
-                    ValidationHelper.ShowError("Giảm giá trên 20% cần Quản lý xác nhận.");
+                    ValidationHelper.ShowError("Giảm giá trên 20% hoặc trên 500.000 đ cần Quản lý xác nhận.");
                     return;
                 }
             }

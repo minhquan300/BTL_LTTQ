@@ -559,13 +559,14 @@ namespace QuanLyNhaHang.Data
                     throw new InvalidOperationException("Thông tin tiền nhận không hợp lệ với phương thức đã chọn.");
 
                 int? approvedBy = managerApprovedBy;
-                if (orderTotal > 0 && discountAmount / orderTotal > 0.20m)
+                if (orderTotal > 0 &&
+                    (discountAmount / orderTotal > 0.20m || discountAmount > 500_000m))
                 {
                     if (approvedBy == null && Convert.ToInt32(actorRole,
                         System.Globalization.CultureInfo.InvariantCulture) == 1)
                         approvedBy = employeeId;
                     if (approvedBy == null)
-                        throw new UnauthorizedAccessException("Giảm giá trên 20% cần Quản lý duyệt.");
+                        throw new UnauthorizedAccessException("Giảm giá trên 20% hoặc trên 500.000 đ cần Quản lý duyệt.");
 
                     var managerCmd = new SqlCommand(@"
                         SELECT COUNT(1) FROM Employees e
