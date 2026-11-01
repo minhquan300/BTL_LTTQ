@@ -6,11 +6,40 @@ namespace QuanLyNhaHang.Forms
     public partial class FormMain : Form
     {
         private Form? _currentChild;
+        private bool _sidebarCollapsed;
+        private string _userFullName = string.Empty;
+        private string _userRoleName = string.Empty;
+        private Button _sidebarToggleButton = null!;
+        private ToolTip _sidebarToolTip = null!;
 
         public FormMain()
         {
             UITheme.ConfigureDpi(this);
             InitializeComponent();
+
+            _sidebarToolTip = new ToolTip(components);
+            _sidebarToggleButton = new Button
+            {
+                Name = "btnSidebarToggle",
+                Text = "☰",
+                Location = new Point(10, 8),
+                Size = new Size(40, 38),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = UITheme.Navy,
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                TabStop = true,
+                AccessibleName = "Thu gọn thanh điều hướng"
+            };
+            _sidebarToggleButton.FlatAppearance.BorderSize = 0;
+            _sidebarToggleButton.Click += (_, _) => SetSidebarCollapsed(!_sidebarCollapsed);
+            _sidebarToolTip.SetToolTip(_sidebarToggleButton, "Thu gọn thanh điều hướng");
+            pnlTopBar.Controls.Add(_sidebarToggleButton);
+            _sidebarToggleButton.BringToFront();
+            lblPageTitle.Location = new Point(60, 14);
+
             pnlContent.BackColor = UITheme.Light;
             pnlSidebar.BackColor = UITheme.SidebarBg;
             pnlLogo.BackColor = UITheme.Navy;
@@ -20,6 +49,7 @@ namespace QuanLyNhaHang.Forms
                 button.BackColor = UITheme.SidebarBg;
                 button.FlatAppearance.MouseOverBackColor = UITheme.SidebarHover;
             }
+            SetSidebarCollapsed(false);
             UITheme.EnableDoubleBuffering(this);
         }
 
@@ -28,8 +58,9 @@ namespace QuanLyNhaHang.Forms
             var user = AuthService.Instance.CurrentUser;
             if (user != null)
             {
-                lblUser.Text = $"👤 {user.FullName}";
-                lblRole.Text = user.RoleName;
+                _userFullName = user.FullName;
+                _userRoleName = user.RoleName;
+                UpdateSidebarUserInfo();
             }
 
             clockTimer.Start();
@@ -76,6 +107,51 @@ namespace QuanLyNhaHang.Forms
         }
 
         public void NavigateTo(Form form) => ShowForm(form);
+
+        private void SetSidebarCollapsed(bool collapsed)
+        {
+            _sidebarCollapsed = collapsed;
+            int width = collapsed ? 68 : 230;
+            pnlSidebar.Width = width;
+
+            SetNavigationButton(btnTables, "🪑", "  🪑  Quản lý bàn", "Quản lý bàn", width, collapsed);
+            SetNavigationButton(btnOrder, "📋", "  📋  Gọi món", "Gọi món", width, collapsed);
+            SetNavigationButton(btnKitchen, "👨‍🍳", "  👨‍🍳  Bếp / Theo dõi", "Bếp / Theo dõi", width, collapsed);
+            SetNavigationButton(btnMenu, "🍜", "  🍜  Thực đơn", "Thực đơn", width, collapsed);
+            SetNavigationButton(btnStats, "📊", "  📊  Thống kê", "Thống kê", width, collapsed);
+            SetNavigationButton(btnUsers, "👥", "  👥  Nhân viên", "Nhân viên", width, collapsed);
+
+            btnLogout.Text = collapsed ? "🚪" : "  🚪  Đăng xuất";
+            btnLogout.TextAlign = collapsed ? ContentAlignment.MiddleCenter : ContentAlignment.MiddleLeft;
+            _sidebarToolTip.SetToolTip(btnLogout, collapsed ? "Đăng xuất" : string.Empty);
+            lblLogo.Text = collapsed ? "🍽️" : "🍽️ NHÀ HÀNG";
+            lblUser.Width = width;
+            lblRole.Width = width;
+            UpdateSidebarUserInfo();
+
+            _sidebarToggleButton.AccessibleName = collapsed
+                ? "Mở rộng thanh điều hướng"
+                : "Thu gọn thanh điều hướng";
+            _sidebarToolTip.SetToolTip(_sidebarToggleButton, _sidebarToggleButton.AccessibleName);
+        }
+
+        private void SetNavigationButton(Button button, string icon, string fullText, string description,
+            int sidebarWidth, bool collapsed)
+        {
+            button.Width = sidebarWidth;
+            button.Text = collapsed ? icon : fullText;
+            button.TextAlign = collapsed ? ContentAlignment.MiddleCenter : ContentAlignment.MiddleLeft;
+            _sidebarToolTip.SetToolTip(button, collapsed ? description : string.Empty);
+        }
+
+        private void UpdateSidebarUserInfo()
+        {
+            if (lblUser == null || lblRole == null) return;
+            lblUser.Text = _sidebarCollapsed ? "👤" : $"👤 {_userFullName}";
+            lblRole.Text = _sidebarCollapsed ? string.Empty : _userRoleName;
+            _sidebarToolTip?.SetToolTip(lblUser, _sidebarCollapsed ? _userFullName : string.Empty);
+            _sidebarToolTip?.SetToolTip(lblRole, _sidebarCollapsed ? _userRoleName : string.Empty);
+        }
 
         private void UpdateNavHighlight(Type formType)
         {
